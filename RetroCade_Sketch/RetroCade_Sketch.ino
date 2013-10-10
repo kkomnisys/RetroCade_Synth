@@ -21,6 +21,10 @@ http://www.gadgetfactory.net
 License: GPL
 
 ChangeLog:
+9/26/2013       Version 1.1
+        -Added SID Analog Filters!!!!!!!!  Thanks to Alvie for writing the VHDL code.
+        -Added SidPlayer library to process SID files from smallFS and SD Cards. Thanks to Alvie for porting to the ZPUino.
+
 1/9/2013        Version 1.02
         -NoteOff fix from Lee O'D
 
@@ -80,15 +84,24 @@ ChangeLog:
   HardwareSerial Serial1(11);   //This is to define Serial1 for the ZPUino.
 
 #include "RetroCade.h"
-//#include "SID.h"
-//#include "YM2149.h"
+#include "SID.h"
+#include "YM2149.h"
 #include "MIDI.h" //Be sure to change MIDI.h to user Serial1 instead of Serial
 #include "SmallFS.h"
 #include <LiquidCrystal.h>
 #include <SD.h>
+//#include "VolumeController.h"
+#include "ymplayer.h"
+#include "modplayer.h"
+#include "ramFS.h"
+#include "cbuffer.h"
+#include "sidplayer.h"
+
 
 byte lastpitch[8];
 File root;
+
+int sidplayercounter = 0;
 
 #undef DO_CHECKS
 //#define DEBUG
@@ -99,9 +112,13 @@ RETROCADE retrocade;
 //SID sid;
 
 void setup(){
+  int input;
   Serial.begin(115200);
   Serial1.begin(31250);
 
+//  for (input=0; input<8; input++) {
+//      VolumeController.set(input, 255, 255);
+//  }
   //Setup pins for RetroCade MegaWing
   retrocade.setupMegaWing(); 
   
@@ -128,14 +145,23 @@ void setup(){
   
   retrocade.modplayer.setup();
   retrocade.ymplayer.setup(&retrocade.ym2149); 
+  retrocade.sidplayer.setup();
+  
+  //retrocade.sidplayer.loadFile("music.sid");
+  //retrocade.sidplayer.play(true);
 
 }
 
 
 void _zpu_interrupt()
 {
+  sidplayercounter++;
   retrocade.modplayer.zpu_interrupt();
   retrocade.ymplayer.zpu_interrupt(); 
+  if (sidplayercounter == 340) {
+    retrocade.sidplayer.zpu_interrupt(); 
+    sidplayercounter = 1;
+  }
   retrocade.setTimeout();
 }
 
@@ -358,7 +384,7 @@ void loop(){
     retrocade.spaceInvadersLCD();          //Don't move the space invader when a mod file is playing
   if (retrocade.ymplayer.getPlaying() == 1)
     retrocade.ymplayer.audiofill(); 
-  retrocade.handleJoystick();     
+  retrocade.handleJoystick(); 
+  retrocade.sidplayer.audiofill();  
 }
-
 
